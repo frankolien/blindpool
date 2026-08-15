@@ -12,6 +12,7 @@ import {
   type ObservedCommit,
 } from "@/lib/blindpool/epoch";
 import { buildBetActions } from "@/lib/blindpool/bet";
+import { savePosition, toStored } from "@/lib/blindpool/vault";
 import type { Side } from "@/lib/blindpool/market";
 import { useStrk20Capability } from "@/lib/blindpool/useStrk20Capability";
 import { useStoreWallet } from "../../Wallet/walletContext";
@@ -36,10 +37,13 @@ const short = (h: string) => (h.length <= 18 ? h : `${h.slice(0, 10)}…${h.slic
 export default function BetPanel({
   observed = [],
   epoch = 0,
+  onSaved,
 }: {
   /** Commits already seen on-chain this epoch. Empty until the market contract is live. */
   observed?: ObservedCommit[];
   epoch?: number;
+  /** Fired after a local preview is stored, so the positions list can refresh. */
+  onSaved?: () => void;
 }) {
   const strk20 = useStrk20Capability();
   const isConnected = useStoreWallet((s) => s.isConnected);
@@ -169,6 +173,20 @@ export default function BetPanel({
             : actions
               ? "Place sealed bet — anonymizer not deployed"
               : "Invalid bet"}
+      </button>
+
+      {/* Honest stand-in while the contract does not exist: stores the position locally so
+          the reveal and claim flow can be seen end to end. Labelled as a local preview
+          rather than dressed up as a bet — a demo that implies an on-chain action that did
+          not happen is worse than one that admits the gap. */}
+      <button
+        className={styles.btn}
+        onClick={() => {
+          savePosition(toStored({ ...secret, side }, "1", epoch, tranche));
+          onSaved?.();
+        }}
+      >
+        Preview locally — stores the position, sends no transaction
       </button>
     </div>
   );

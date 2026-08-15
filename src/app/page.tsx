@@ -4,7 +4,7 @@ import type { CSSProperties } from 'react';
 import styles from './uni.module.css';
 import SelectWallet from './components/client/WalletHandle/SelectWallet';
 import WalletAccountV6Tag from './components/client/WalletHandle/WalletAccountV6Tag';
-import BetPanel from './components/client/Blindpool/BetPanel';
+import Blindpool from './components/client/Blindpool/Blindpool';
 import { StrkCoin, BtcCoin, EthCoin, UsdcCoin, ZecCoin } from './components/TokenIcons';
 
 // Scattered, blurred token coins on the sides of the page (background ambience).
@@ -70,7 +70,7 @@ export default function Page() {
       </header>
 
       <main>
-        <BetPanel />
+        <Blindpool />
         <WalletAccountV6Tag />
       </main>
 
