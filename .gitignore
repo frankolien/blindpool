@@ -47,3 +47,8 @@ A1priv/A1priv.ts
 
 # cairo build artifacts
 /cairo/target/
+
+# agent tooling — reinstall with:
+#   npx skills add starkience/strk20-agent-skills
+/.agents/
+/.claude/

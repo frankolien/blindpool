@@ -91,8 +91,9 @@ them.
 
 - **Next.js 16** · React 19 · TypeScript
 - **starknet.js 10.4** with get-starknet v6 wallet discovery
-- **`@starkware-libs/starknet-privacy-sdk`** for shield / private transfer / unshield
-- **Cairo** helper contract for the market registry and settlement
+- **Privacy Wallet API via starknet.js** for shield / private transfer / unshield —
+  users keep their own wallet and the app never touches a viewing key
+- **Cairo** anonymizer for the market registry and settlement (own contract, own audit)
 - Starknet **mainnet** (`SN_MAIN`)
 
 Scaffolded from the [strk20-starter-kit](https://github.com/Akashneelesh/strk20-starter-kit).
@@ -117,6 +118,13 @@ Open http://localhost:3000.
 
 Get a free Starknet RPC key at [alchemy.com](https://www.alchemy.com). It lives in
 `.env.local`, which is gitignored — the key is never committed.
+
+The STRK20 integration skill used to plan privacy work in this repo is not
+vendored; install it with:
+
+```bash
+npx skills add starkience/strk20-agent-skills
+```
 
 ## Status
 
