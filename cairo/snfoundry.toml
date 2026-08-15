@@ -1,0 +1,14 @@
+# sncast configuration.
+#
+# The RPC url is read from an env var so no Alchemy key is ever committed:
+#   export STARKNET_RPC="https://starknet-sepolia.g.alchemy.com/starknet/version/rpc/v0_10/$ALCHEMY_KEY"
+#
+# Accounts live in ~/.starknet_accounts/, outside the repo. See SEPOLIA.md.
+
+[sncast.sepolia]
+account = "blindpool_sepolia"
+wait = true
+
+[sncast.mainnet]
+account = "blindpool_mainnet"
+wait = true

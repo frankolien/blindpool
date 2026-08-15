@@ -34,6 +34,37 @@ export const OP = { BET: "0x1", REVEAL: "0x2", CLAIM: "0x3" } as const;
 export const POOL_ADDRESS_PLACEHOLDER = "${poolAddress}";
 export const openNotePlaceholder = (n: number) => `\${openNoteIds[${n}]}`;
 
+/**
+ * The pool forwards this calldata array positionally as `privacy_invoke`'s arguments, so
+ * the array *is* the signature:
+ *
+ *   [token, ${poolAddress}, note_id, payload_len, ...payload]
+ *
+ * A Cairo entrypoint has one fixed arity but a BET carries different parameters than a
+ * CLAIM, so the operation-specific part travels in a trailing `Span<felt252>`, which
+ * Serde encodes as a length followed by its items. `note_id` is 0 for operations that
+ * request no open note.
+ *
+ * Mirrors `IBlindpool::privacy_invoke` in cairo/src/interfaces.cairo — change one and you
+ * must change the other, or the dapp and the contract silently disagree.
+ */
+function invokeCalldata(
+  token: string,
+  noteId: string,
+  payload: string[],
+): string[] {
+  return [num.toHex(token), POOL_ADDRESS_PLACEHOLDER, noteId, num.toHex(payload.length), ...payload];
+}
+
+/** u256 as Serde encodes it: low then high felt. */
+function u256Felts(v: bigint): [string, string] {
+  const MASK = (1n << 128n) - 1n;
+  return [num.toHex(v & MASK), num.toHex(v >> 128n)];
+}
+
+/** No open note is requested by BET or REVEAL — nothing is credited back. */
+const NO_NOTE = "0x0";
+
 export interface BetParams {
   anonymizer: string;
   token: string;
@@ -69,20 +100,20 @@ export function buildBetActions(p: BetParams): WALLET_API.STRK20_ACTION[] {
     {
       type: "invoke",
       contract: p.anonymizer,
-      calldata: [
+      calldata: invokeCalldata(p.token, NO_NOTE, [
         OP.BET,
         num.toHex(p.marketId),
         num.toHex(p.epoch),
         commitment,
-        num.toHex(p.tranche),
-        POOL_ADDRESS_PLACEHOLDER,
-      ],
+        ...u256Felts(p.tranche),
+      ]),
     },
   ];
 }
 
 export interface RevealParams {
   anonymizer: string;
+  token: string;
   marketId: string | number;
   secret: BetSecret;
 }
@@ -99,14 +130,14 @@ export function buildRevealActions(p: RevealParams): WALLET_API.STRK20_ACTION[] 
     {
       type: "invoke",
       contract: p.anonymizer,
-      calldata: [
+      calldata: invokeCalldata(p.token, NO_NOTE, [
         OP.REVEAL,
         num.toHex(p.marketId),
         computeCommitment(p.secret),
         num.toHex(SIDE_FELT[p.secret.side]),
         num.toHex(p.secret.nonce),
         num.toHex(p.secret.secret),
-      ],
+      ]),
     },
   ];
 }
@@ -139,16 +170,16 @@ export function buildClaimActions(p: ClaimParams): WALLET_API.STRK20_ACTION[] {
     {
       type: "invoke",
       contract: p.anonymizer,
-      calldata: [
+      // The open-note placeholder is the note_id argument, not a payload item — the pool
+      // substitutes it in place, and the contract returns an OpenNoteDeposit naming it.
+      calldata: invokeCalldata(p.token, openNotePlaceholder(0), [
         OP.CLAIM,
         num.toHex(p.marketId),
         computeCommitment(p.secret),
         num.toHex(SIDE_FELT[p.secret.side]),
         num.toHex(p.secret.nonce),
         num.toHex(p.secret.secret),
-        POOL_ADDRESS_PLACEHOLDER,
-        openNotePlaceholder(0),
-      ],
+      ]),
     },
   ];
 }

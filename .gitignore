@@ -57,3 +57,6 @@ A1priv/A1priv.ts
 /spec/states/
 *.st
 *.fp
+
+# cairo build artifacts (scarb)
+/cairo/target/

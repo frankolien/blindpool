@@ -81,16 +81,32 @@ describe("buildBetActions", () => {
     // market ids and epochs hex-encode to the same short values as SIDE_FELT, so a
     // containment check would be a false positive on marketId 1. The layout is the real
     // guarantee — there is no slot for the side.
+    //
+    // Shape: [token, ${poolAddress}, note_id, payload_len, ...payload]
+    // and must match IBlindpool::privacy_invoke in cairo/src/interfaces.cairo.
     const marketId = 42;
     const invoke = bet({ marketId })[1] as { calldata: string[] };
     expect(invoke.calldata).toEqual([
+      TOKEN,
+      POOL_ADDRESS_PLACEHOLDER,
+      "0x0", // no open note — a bet has no output
+      "0x6", // payload length
       OP.BET,
       "0x2a",
       "0x0",
       computeCommitment(secret),
-      "0x8ac7230489e80000", // 10 STRK
-      POOL_ADDRESS_PLACEHOLDER,
+      "0x8ac7230489e80000", // 10 STRK, u256 low
+      "0x0", // u256 high
     ]);
+  });
+
+  it("encodes the tranche as a two-felt u256", () => {
+    // Cairo's Serde splits u256 into (low, high). Sending a single felt would shift every
+    // later argument by one and the contract would read garbage.
+    const invoke = bet({ tranche: TRANCHES[2] })[1] as { calldata: string[] };
+    const payload = invoke.calldata.slice(4);
+    expect(payload).toHaveLength(6);
+    expect(BigInt(payload[4]) + (BigInt(payload[5]) << 128n)).toBe(TRANCHES[2]);
   });
 
   it("produces identical calldata for YES and NO apart from the commitment", () => {
@@ -129,7 +145,8 @@ describe("buildBetActions", () => {
         const invoke = bet({ secret: { side, nonce: n, secret: n * 3n } })[1] as {
           calldata: string[];
         };
-        seen.add(invoke.calldata[3]);
+        // [token, pool, note_id, len, OP, market, epoch, commitment, lo, hi]
+        seen.add(invoke.calldata[7]);
       }
     }
     expect(seen.size).toBe(10);
@@ -138,19 +155,28 @@ describe("buildBetActions", () => {
 
 describe("buildRevealActions", () => {
   it("moves no value — it is a pure state transition", () => {
-    const actions = buildRevealActions({ anonymizer: ANONYMIZER, marketId: 1, secret });
+    const actions = buildRevealActions({ anonymizer: ANONYMIZER, token: TOKEN, marketId: 1, secret });
     expect(actions).toHaveLength(1);
     expect(actions[0].type).toBe("invoke");
   });
 
   it("sends the full opening so the contract can verify the commitment", () => {
-    const invoke = buildRevealActions({ anonymizer: ANONYMIZER, marketId: 1, secret })[0] as {
-      calldata: string[];
-    };
-    expect(invoke.calldata[0]).toBe(OP.REVEAL);
-    expect(invoke.calldata).toContain(computeCommitment(secret));
-    expect(invoke.calldata).toContain("0x7"); // nonce
-    expect(invoke.calldata).toContain("0x9"); // secret
+    const invoke = buildRevealActions({
+      anonymizer: ANONYMIZER,
+      token: TOKEN,
+      marketId: 1,
+      secret,
+    })[0] as { calldata: string[] };
+    // [token, ${poolAddress}, note_id, payload_len, ...payload]
+    expect(invoke.calldata.slice(0, 4)).toEqual([TOKEN, POOL_ADDRESS_PLACEHOLDER, "0x0", "0x6"]);
+    expect(invoke.calldata.slice(4)).toEqual([
+      OP.REVEAL,
+      "0x1", // marketId
+      computeCommitment(secret),
+      "0x1", // side YES
+      "0x7", // nonce
+      "0x9", // secret
+    ]);
   });
 });
 

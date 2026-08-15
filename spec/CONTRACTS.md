@@ -119,9 +119,42 @@ caller of record.
 
 ### Mandatory entrypoint
 
-`privacy_invoke` is dispatched by the pool via a hardcoded selector. Its shape is
-fixed by the protocol, not by Blindpool — take it from the reference anonymizers
-rather than from this document.
+`privacy_invoke` is dispatched by the pool via a hardcoded selector — the shape is
+fixed by the protocol, not by Blindpool.
+
+**Verified in this repo.** `cairo/src/lib.cairo` (the starter kit's echo helper) is a
+working `privacy_invoke` implementation against the live pool, so its signature is
+ground truth rather than inference:
+
+```cairo
+// Must match privacy::objects::OpenNoteDeposit (positional Serde).
+#[derive(Serde, Copy, Drop, PartialEq, Debug)]
+pub struct OpenNoteDeposit {
+    pub note_id: felt252,
+    pub token: ContractAddress,
+    pub amount: u128,
+}
+
+fn privacy_invoke(
+    ref self: TState,
+    token: ContractAddress,         // literal felt in calldata
+    pool_address: ContractAddress,  // wallet placeholder: ${poolAddress}
+    note_id: felt252,               // wallet placeholder: ${openNoteIds[0]}
+) -> Span<OpenNoteDeposit>;
+```
+
+Two consequences for Blindpool:
+
+- **The return value is how the pool learns what to credit.** Returning an empty span
+  means "nothing comes back", which is exactly a BET. A CLAIM returns one
+  `OpenNoteDeposit` naming the note id to fill and the payout amount.
+- **Amounts are `u128` here**, while market storage uses `u256`. Convert at the
+  boundary and reject anything that would truncate, rather than casting silently.
+
+Calldata after the fixed three arguments carries Blindpool's own operation
+discriminator and parameters (see the composition in §2.5 below). Read
+`packages/ekubo_swap_anonymizer` for how a real helper destructures a longer
+calldata tail.
 
 Flow, per the STRK20 model:
 
