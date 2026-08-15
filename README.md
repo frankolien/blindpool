@@ -128,9 +128,25 @@ npx skills add starkience/strk20-agent-skills
 
 ## Status
 
-Early. The wallet picker and the shield / unshield / private-transfer paths come
-from the starter kit and work against mainnet. The market registry, odds
-derivation and settlement are in progress.
+**Working now.** Wallet picker and shield / unshield / private transfer (from the
+starter kit, against mainnet). STRK20 capability detection with graceful
+degradation — a wallet without privacy support keeps every public view. The
+sealed-bet panel computes real Poseidon commitments and shows the live anonymity
+meter before you sign. 62 property tests pass; `npm test`.
+
+**Formally specified.** [`spec/Blindpool.tla`](spec/Blindpool.tla) is model-checked
+with TLC — 44,535 distinct states, no invariant violated, and a negative control
+confirms `EpochMonotonic` catches a mid-epoch leak in 2 states.
+[`spec/THREAT_MODEL.md`](spec/THREAT_MODEL.md) states what an observer learns, and
+what still leaks.
+
+**Not built yet.** The two Cairo contracts are fully specified in
+[`spec/CONTRACTS.md`](spec/CONTRACTS.md) but not written — on-chain code that
+custodies stakes gets written and audited by a human, not generated. Until they are
+deployed, placing a bet is disabled in the UI and says so.
+
+See [`STRK20_INTEGRATION_PLAN.md`](STRK20_INTEGRATION_PLAN.md) for the phased plan
+and every open item.
 
 Progress is read from this repository every 30 minutes; `strk20.json` carries the
 mainnet transactions, deployed contracts and demo links as they come to exist.

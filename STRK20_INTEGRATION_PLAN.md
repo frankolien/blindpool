@@ -225,7 +225,20 @@ counter and anything resembling a leaderboard.
 
 ## 6. Formal methods
 
-### 6.1 TLA+ specification — `spec/Blindpool.tla`
+### 6.1 TLA+ specification — `spec/Blindpool.tla` ✅ done 2026-08-15
+
+**Model-checked with TLC**: 65,417 states generated, 44,535 distinct, depth 18, no
+invariant violated, on the model in `spec/Blindpool.cfg` (2 bettors × 2 epochs × 2
+denominations × 2 sides).
+
+**Negative control run** — a spec that cannot fail proves nothing. A mutant where
+`Commit` publishes volume immediately (i.e. a naive continuous market) violates
+`EpochMonotonic` in **2 states**. The invariant has teeth.
+
+```sh
+java -cp tla2tools.jar tlc2.TLC -config Blindpool.cfg Blindpool.tla
+```
+
 
 Model the market lifecycle `OPEN → SEALED → REVEALED → RESOLVED → CLAIMED` and
 check with TLC over a small bounded model (2 sides, 3 bettors, 2 epochs, 2
@@ -284,31 +297,38 @@ step. This is the artifact that defends the privacy claim.
    component, per the WalletAccount guide.
 5. Verify against the Ready extension and https://starknet-wallet-account.vercel.app/.
 
-### Phase 2 — Public market layer (no privacy dependency)
+### Phase 2 — Public market layer ⚠️ partial 2026-08-15 — app code done, Cairo is yours
 
-1. Market registry Cairo contract (`cairo/src/market.cairo`): question, deadline,
-   resolution source, epoch schedule, per-side aggregates, outcome.
-2. Replace the echo helper in `cairo/src/lib.cairo` — it is starter-kit demo code.
-3. Indexer reading the pool's `Deposit` event (topic1) for volume and anonymity-set
-   counts (§5.6).
-4. Wire `src/lib/blindpool/market.ts` to real on-chain state; land §6.2 property
-   tests alongside.
+1. ⛔ Market registry Cairo contract — **specified, not written**. Full storage
+   layout, entrypoints, events, payout arithmetic and invariants in
+   `spec/CONTRACTS.md` §1. This skill does not generate Cairo: on-chain code that
+   custodies stakes must be written and audited by the team, and an unreviewed
+   generated contract is worse than none because it looks finished.
+2. ⛔ Replace the echo helper in `cairo/src/lib.cairo` — blocked on the above.
+3. ✅ Indexer — `src/lib/blindpool/indexer.ts`, reading `Deposit` topic1, with
+   continuation-token pagination (a single `getEvents` call silently returns one
+   chunk, which reads as a quiet market rather than an incomplete query).
+4. ✅ §6.2 property tests landed — 62 passing across market, capability, epoch, bet.
 
-### Phase 3 — The anonymizer (Blindpool owns this contract)
+### Phase 3 — The anonymizer ⚠️ partial 2026-08-15 — composition done, Cairo is yours
 
-1. Design on paper first: input tranche → commit/reveal/claim → settlement, in the
-   withdraw → act → re-shield shape, with rollback behavior per action.
-2. Study `packages/ekubo_swap_anonymizer` and `packages/vesu_lending_anonymizer` in
-   https://github.com/starkware-libs/starknet-privacy as skeletons — not templates.
+1. ✅ Designed on paper — `spec/CONTRACTS.md` §2: the `privacy_invoke` flow, the
+   three operations (BET / REVEAL / CLAIM) with their token flows and guards, and
+   which one needs an open note and why.
+2. ✅ Transaction composition built and tested — `src/lib/blindpool/bet.ts`, with
+   tests that placeholders survive un-normalized and that a YES and a NO bet differ
+   in exactly one calldata field, which is a hash.
+3. ⛔ **The Cairo itself — yours to write.** Adapt from
+   `packages/ekubo_swap_anonymizer` / `packages/vesu_lending_anonymizer` in
+   https://github.com/starkware-libs/starknet-privacy as skeletons, not templates.
    Read `InboundAnonymizer` in the Privacy Bridge for the commitment-binding shape
-   (`privacy_invoke_with_computation`), which is the closest published analogue to
+   (`privacy_invoke_with_computation`) — the closest published analogue to
    Blindpool's commit scheme.
-3. Develop against the SDK-direct path **on Sepolia only**, where the team controls
-   the account and keys. Production user flows stay on the Wallet API.
-4. `snforge` tests per §6.3.
-5. **Audit — non-negotiable before mainnet.** Owner and timing to be named now, not
-   at the end. This skill does not write Cairo; Blindpool owns review, audit,
-   deployment and maintenance.
+4. ⛔ Develop against the SDK-direct path **on Sepolia only**, where the team
+   controls the account and keys. Production user flows stay on the Wallet API.
+5. ⛔ `snforge` tests per §6.3 — checklist in `spec/CONTRACTS.md` §3.
+6. ⛔ **Audit — non-negotiable before mainnet.** No owner named yet; this is the
+   most likely critical path. Focus areas ranked in `spec/CONTRACTS.md` §4.
 
 ### Phase 4 — Sprint deliverables
 
@@ -323,6 +343,12 @@ step. This is the artifact that defends the privacy claim.
 
 **Mainnet gate:** every phase above runs on Sepolia. Moving to mainnet requires
 explicit confirmation at that moment, per §8.
+
+**Phase 4 is blocked on Phase 3, and on you.** The three mainnet transactions need
+a deployed anonymizer, a funded mainnet account and your wallet signing — none of
+which an agent can or should do unattended. The demo video is yours to record. What
+is ready for it: the sealed-bet panel with live Poseidon commitments and the
+anonymity meter, the model-checked spec, and the threat model.
 
 ---
 

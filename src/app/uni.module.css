@@ -465,3 +465,106 @@
 @media (prefers-reduced-motion: reduce) {
   .btn, .connectPill, .btnCta, .tab { transition: none; }
 }
+
+/* ─── Blindpool: sealed-bet panel ──────────────────────────────────────────── */
+
+.bpSides {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+.bpSide {
+  flex: 1;
+  padding: 14px;
+  font-family: var(--font-body), sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+  background: var(--inset);
+  border: 1.5px solid transparent;
+  border-radius: 14px;
+  cursor: pointer;
+  transition: color 140ms, background 140ms, border-color 140ms;
+}
+.bpSide:hover { background: var(--inset-2); }
+.bpSideActive {
+  color: var(--pink-text);
+  background: var(--pink-soft);
+  border-color: var(--pink);
+}
+
+.bpTranches {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+}
+.bpTranche {
+  flex: 1;
+  padding: 10px 8px;
+  font-family: var(--font-body), sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  background: var(--inset);
+  border: 1.5px solid transparent;
+  border-radius: 11px;
+  cursor: pointer;
+  transition: color 140ms, background 140ms, border-color 140ms;
+}
+.bpTranche:hover { background: var(--inset-2); }
+.bpTrancheActive {
+  color: var(--ink);
+  background: var(--card);
+  border-color: var(--ink);
+}
+
+/* Anonymity meter — the k-value shown before signing, not after. */
+.bpMeter {
+  margin-top: 12px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: var(--card);
+}
+.bpMeterOk { border-color: #bfe8d5; background: var(--green-soft); }
+.bpMeterWarn { border-color: var(--pink-soft-2); background: var(--pink-soft); }
+
+.bpMeterK {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.bpMeterNum {
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--ink);
+}
+.bpMeterUnit {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.bpMeterBar {
+  height: 6px;
+  margin: 10px 0 8px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.07);
+  overflow: hidden;
+}
+.bpMeterFill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--pink);
+  transition: width 220ms ease;
+}
+.bpMeterOk .bpMeterFill { background: var(--green); }
+
+.bpMeterMsg {
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--ink);
+}

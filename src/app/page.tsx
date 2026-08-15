@@ -4,6 +4,7 @@ import type { CSSProperties } from 'react';
 import styles from './uni.module.css';
 import SelectWallet from './components/client/WalletHandle/SelectWallet';
 import WalletAccountV6Tag from './components/client/WalletHandle/WalletAccountV6Tag';
+import BetPanel from './components/client/Blindpool/BetPanel';
 import { StrkCoin, BtcCoin, EthCoin, UsdcCoin, ZecCoin } from './components/TokenIcons';
 
 // Scattered, blurred token coins on the sides of the page (background ambience).
@@ -57,26 +58,28 @@ export default function Page() {
 
       <header className={styles.hero}>
         <h1 className={styles.heroTitle}>
-          Just Encrypt
+          Public odds.
           <br />
-          <span className={styles.heroAccent}>Everything</span>
+          <span className={styles.heroAccent}>Invisible bettors.</span>
         </h1>
         <p className={styles.heroSub}>
-          Shield, unshield, privately transfer and build your own private apps
-          on Starknet.
+          A prediction market where the book is public and every position is sealed.
+          Bets commit to a hash; only per-epoch aggregates are ever revealed, so
+          running odds cannot be computed mid-epoch and there is nothing to front-run.
         </p>
       </header>
 
       <main>
+        <BetPanel />
         <WalletAccountV6Tag />
       </main>
 
       <footer className={styles.footer}>
-        <a href="https://github.com/PhilippeR26/Starknet-WalletAccount" target="_blank" rel="noreferrer">
+        <a href="https://github.com/frankolien/blindpool" target="_blank" rel="noreferrer">
           Repo
         </a>
         <span className={styles.footerDot}>·</span>
-        <span>Powered by Starknet.js v10.4.0</span>
+        <span>STRK20 Private Sprint · Starknet.js v10.7.0</span>
       </footer>
     </div>
   );
