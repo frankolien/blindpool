@@ -83,11 +83,17 @@ provide. §5.2 explains why Blindpool's commitment design does not need them.
 
 ## 4. Prerequisites & versions
 
-- `starknet@10.4.0` — **already satisfied**. Pin `>= 10.4.0` explicitly; STRK20
-  releases are on the npm `next` tag (`next` was 10.7.0 on 2026-08-15).
+- `starknet@10.7.0` — **upgraded from 10.4.0 during Phase 1, and not optional.**
 - `@starknet-io/get-starknet-discovery@6.0.4`,
-  `@starknet-io/get-starknet-wallet-standard@6.0.4` — **upgrade from 6.0.2**
-  (npm `next` tag — pin explicitly; the skill's 6.0.3 pin drifted, see §10).
+  `@starknet-io/get-starknet-wallet-standard@6.0.4` — upgraded from 6.0.2.
+
+> **These two must move together.** `starknet` bundles its own copy of
+> `@starknet-io/get-starknet-wallet-standard-v6`, typed against a pinned
+> `types-js`. Pair a newer top-level get-starknet with an older `starknet` and
+> `WalletAccountV6.connect()` fails to typecheck on incompatible `RequestFn`
+> signatures. Verified on 2026-08-15: **10.4.0 + 6.0.2 ✅ · 10.4.0 + 6.0.3 ❌ ·
+> 10.4.0 + 6.0.4 ❌ · 10.7.0 + 6.0.4 ✅.** The skill's own suggested pairing
+> (10.4.0 + 6.0.3) does **not** build against this starter kit.
 - `@starknet-io/types-js@0.10.3` — already satisfied. Supplies `STRK20_ACTION`.
 - Wallet API capability floor: `>= 0.10.3`, detected via
   `supportedWalletApi`/`supportedSpecs` — **never** by probing balances.
@@ -167,21 +173,44 @@ inside the same epoch (§3, limit 3).
 
 ### 5.5 Transaction composition
 
-A bet is **one** `wallet_strk20InvokeTransaction` carrying an ordered action list:
+A bet is **one** `wallet_strk20InvokeTransaction` carrying an ordered action list.
+
+**Corrected 2026-08-15** against the working `handleComplex` echo flow in
+`WalletAccountV6Tag.tsx:335-363` — the original sketch in this plan was wrong. The
+real pattern moves tokens to the helper with a `withdraw`, and uses an `OPEN`
+transfer only to receive an output whose amount is not known until the contract
+has run:
 
 ```ts
+// Placing a bet — stake goes to the anonymizer, nothing comes back this transaction.
 actions: [
-  { type: 'transfer', token: STRK, amount: 'OPEN', recipient: <pool> },
+  { type: 'withdraw', token: STRK, amount: num.toHex(tranche), recipient: ANONYMIZER },
   { type: 'invoke',
-    contract: BLINDPOOL_ANONYMIZER,
-    calldata: [marketId, epochId, commitment, '${openNoteIds[0]}', '${poolAddress}'] },
+    contract: ANONYMIZER,
+    calldata: [marketId, epochId, commitment, num.toHex(tranche), '${poolAddress}'] },
+]
+
+// Claiming a win — payout amount is only known after settlement runs, so it lands
+// in an open note, exactly like the echo helper's round-trip.
+actions: [
+  { type: 'transfer', token: STRK, amount: 'OPEN', recipient: connectedAddress },
+  { type: 'invoke',
+    contract: ANONYMIZER,
+    calldata: [marketId, commitment, side, nonce, secret,
+               '${poolAddress}', '${openNoteIds[0]}'] },
 ]
 ```
 
-`${openNoteIds[N]}` and `${poolAddress}` are wallet-resolved placeholders defined
-in `@starknet-io/types-js@0.10.3`. **Verify the exact composition against
-https://strk20-by-example.org/starknet-wallet-api/private-defi before writing
-this** — do not treat the sketch above as final.
+Two mechanical details that cost real debugging time if missed, both visible in the
+echo helper:
+
+- `"OPEN"`, `"${poolAddress}"` and `"${openNoteIds[0]}"` are **literal placeholder
+  strings** the wallet substitutes during assembly. They must **not** be passed
+  through `num.toHex()` — normalizing them breaks substitution silently.
+- The open-note `transfer` recipient is the **user's own address**, not the pool.
+
+Still to confirm on Sepolia against a deployed anonymizer (Phase 3), alongside
+https://strk20-by-example.org/starknet-wallet-api/private-defi.
 
 ### 5.6 Reading activity back
 
@@ -243,7 +272,7 @@ step. This is the artifact that defends the privacy claim.
 
 ## 7. Phases
 
-### Phase 1 — Wallet API foundation (buildable now)
+### Phase 1 — Wallet API foundation ✅ done 2026-08-15
 
 1. Upgrade get-starknet to 6.0.4 in `package.json`; keep `starknet` at ≥ 10.4.0.
 2. Capability-detect STRK20 via `supportedWalletApi`/`supportedSpecs` in
@@ -334,8 +363,21 @@ and mainnet alike; budget for a screening-rejected deposit as a real test case.
 
 ## 10. Open items to re-verify at build time
 
-- **get-starknet drifted** 6.0.3 → **6.0.4** (skill pin is stale). Confirm before
-  pinning.
+- **Version pairing is load-bearing** (found in Phase 1, §4). `starknet` and
+  get-starknet must be upgraded together; 10.4.0 + 6.0.3 and 10.4.0 + 6.0.4 both
+  fail to typecheck. Landed on **10.7.0 + 6.0.4**. Re-test this pairing on any
+  future bump of either package rather than bumping one alone.
+- **§5.5 transaction composition was corrected** on 2026-08-15 against the working
+  echo flow. The `OPEN` transfer is for *receiving* an amount the contract computes,
+  not for funding the helper — funding is a `withdraw`. Placeholder strings must not
+  be hex-normalized.
+- **Test tooling added** (`vitest` + `fast-check`), a deliberate departure from the
+  skill's "never introduce a new test framework" default: the repo had no test setup
+  at all, and the approved plan's §6.2 requires executable properties. 48 properties
+  currently pass.
+- **TLA+ spec (§6.1) not yet written** — Phase 2 work, tracked here so it is not
+  quietly dropped. The property tests cover `Conservation` and `RevealBinding`
+  executably; `EpochMonotonic` needs the model.
 - **`packages/sub_account_anonymizer` no longer exists** — renamed to
   `packages/shadow_account_anonymizer` in the 0.14.3-RC.5 breaking change
   (2026-08-13). Selectors and event keys changed; historical `SubAccountDeployed`

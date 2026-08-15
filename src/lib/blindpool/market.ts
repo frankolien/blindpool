@@ -49,9 +49,17 @@ export function oddsFor(state: MarketState, side: Side): number {
   return Number(bps) / 10_000;
 }
 
-/** Both sides at once, for rendering a book. */
+/**
+ * Both sides at once, for rendering a book.
+ *
+ * The complement is derived rather than computed independently: `oddsFor` floors to basis
+ * points, so calling it twice can total 0.9999 (volumes 1 and 2 give 3333 + 6666 bps).
+ * Odds that don't sum to 1 are a visible defect in a prediction market, so YES is the
+ * measured side and NO absorbs the rounding.
+ */
 export function odds(state: MarketState): Record<Side, number> {
-  return { YES: oddsFor(state, "YES"), NO: oddsFor(state, "NO") };
+  const yes = oddsFor(state, "YES");
+  return { YES: yes, NO: 1 - yes };
 }
 
 /** Total shielded volume across both sides. */

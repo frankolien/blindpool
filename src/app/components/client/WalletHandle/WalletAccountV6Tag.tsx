@@ -9,6 +9,7 @@ import { useStoreWallet } from "../../Wallet/walletContext";
 import { useFrontendProvider } from "../provider/providerContext";
 import { StrkCoin } from "../../TokenIcons";
 import SelectWallet from "./SelectWallet";
+import { useStrk20Capability } from "@/lib/blindpool/useStrk20Capability";
 
 // DEMO: all actions use one token (STRK). Swap constants.addrSTRK for your token,
 // or make the token a user selection.
@@ -154,6 +155,13 @@ export default function WalletAccountV6Tag() {
   // STRK20 privacy pool is available on Mainnet (index 0) and Sepolia (index 2).
   const networkName = constants.Strk20Networks[myFrontendProviderIndex];
   const isStrk20Network = networkName !== undefined;
+
+  // Does the connected wallet actually speak the STRK20 action set? Derived from the spec
+  // list captured at connect time — never by probing balances (see useStrk20Capability).
+  // Private actions stay disabled unless this is true, so a non-privacy wallet degrades to
+  // a readable app instead of failing at signing time.
+  const strk20 = useStrk20Capability();
+  const canAct = isStrk20Network && strk20.supported;
   // Echo-invoke helper is deployed per-network ("0x0" = not deployed on this one).
   const echoHelperAddr = constants.echoHelperForIndex(myFrontendProviderIndex);
   const hasEchoHelper = (() => {
@@ -488,11 +496,11 @@ export default function WalletAccountV6Tag() {
     TabKey,
     { label: string; value: string; token: string; hint: string; cta: string; onRun: () => void; result: ActionResult | null; disabled: boolean }
   > = {
-    shield: { label: "You're shielding", value: "10", token: "STRK", hint: "Deposit into the privacy pool", cta: "Shield", onRun: handleShield, result: resultShield, disabled: !isStrk20Network },
-    send: { label: "You're sending - to self", value: "1", token: "STRK", hint: "Private in-pool transfer", cta: "Self transfer", onRun: handleSelfTransfer, result: resultTransfer, disabled: !isStrk20Network },
-    unshield: { label: "You're unshielding", value: "1", token: "STRK", hint: "Withdraw to your account", cta: "Unshield", onRun: handleUnshield, result: resultUnshield, disabled: !isStrk20Network },
-    echo: { label: "Echo invoke round-trip", value: "5", token: "STRK", hint: "Withdraw → helper → refill open note", cta: "Run echo", onRun: handleComplex, result: resultComplex, disabled: !isStrk20Network || !hasEchoHelper },
-    balances: { label: "Shielded balances", value: "All", token: "tokens", hint: "Read your private pool balances", cta: "Query balances", onRun: handleBalances, result: resultBalances, disabled: !isStrk20Network },
+    shield: { label: "You're shielding", value: "10", token: "STRK", hint: "Deposit into the privacy pool", cta: "Shield", onRun: handleShield, result: resultShield, disabled: !canAct },
+    send: { label: "You're sending - to self", value: "1", token: "STRK", hint: "Private in-pool transfer", cta: "Self transfer", onRun: handleSelfTransfer, result: resultTransfer, disabled: !canAct },
+    unshield: { label: "You're unshielding", value: "1", token: "STRK", hint: "Withdraw to your account", cta: "Unshield", onRun: handleUnshield, result: resultUnshield, disabled: !canAct },
+    echo: { label: "Echo invoke round-trip", value: "5", token: "STRK", hint: "Withdraw → helper → refill open note", cta: "Run echo", onRun: handleComplex, result: resultComplex, disabled: !canAct || !hasEchoHelper },
+    balances: { label: "Shielded balances", value: "All", token: "tokens", hint: "Read your private pool balances", cta: "Query balances", onRun: handleBalances, result: resultBalances, disabled: !canAct },
   };
   const active = CONFIG[tab];
 
@@ -538,10 +546,31 @@ export default function WalletAccountV6Tag() {
         </span>
       </div>
 
+      {/* Wallet API spec the connected wallet reports — shown so the capability decision
+          is visible rather than mysterious when actions are greyed out. */}
+      {isConnected && (
+        <div className={styles.feeRow}>
+          <span>Wallet API</span>
+          <span className={`${styles.feeVal} ${strk20.supported ? styles.netOk : styles.netBad}`}>
+            <span
+              className={`${styles.netDot} ${strk20.supported ? styles.netOkDot : styles.netBadDot}`}
+            />
+            {strk20.best ?? "not reported"}
+          </span>
+        </div>
+      )}
+
       {!isStrk20Network && (
         <div className={styles.warn}>
           STRK20 actions require Mainnet or Sepolia - switch your wallet network.
         </div>
+      )}
+
+      {/* Graceful degradation: a wallet without STRK20 support keeps every public view and
+          loses only the private actions. The reason is the user-facing sentence from
+          strk20Capability(), not an error code. */}
+      {isConnected && isStrk20Network && !strk20.supported && strk20.reason && (
+        <div className={styles.warn}>{strk20.reason}</div>
       )}
 
       {/* Echo-helper deploy (echo tab, supported network, no helper yet) */}
