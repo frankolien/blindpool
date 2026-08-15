@@ -52,3 +52,8 @@ A1priv/A1priv.ts
 #   npx skills add starkience/strk20-agent-skills
 /.agents/
 /.claude/
+
+# TLC model-checker scratch output
+/spec/states/
+*.st
+*.fp
